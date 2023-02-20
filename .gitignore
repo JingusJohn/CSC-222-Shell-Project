@@ -1,0 +1,4 @@
+# any executables generated should be ignored by git
+shell
+techshell
+a.out
