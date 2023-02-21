@@ -4,6 +4,13 @@ This repo was made public on February 25, 2023 after the due date for the projec
 ## Execution
 
 Code can be ran by executing the following commands:
+
+```bash
+./run.sh
+```
+
+***OR***
+
 ```bash
 gcc -o techshell techshell.c shelllib.c
 ./techshell
