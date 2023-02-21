@@ -6,7 +6,9 @@ This repo was made public on February 25, 2023 after the due date for the projec
 Code can be ran by executing the following commands:
 
 ```bash
-./run.sh
+./run.sh # to compile the program
+
+./run.sh dev # to compile the program and execute
 ```
 
 ***OR***
