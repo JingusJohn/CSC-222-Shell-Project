@@ -22,6 +22,9 @@ enum status tokenize(char input[256]); // return could be status enum?
 //int tokenize(char input[256]); // could also return number of status enum
 
 // HANDLERS
+int handleNoRedirect(char* input);
+int handleRedirectInput(char* input);
+int handleRedirectOutput(char* input);
 int handleInput(char* input);
 
 #endif
