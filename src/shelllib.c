@@ -254,8 +254,10 @@ int handleRedirectInput(char *input) {
     pid_t child = fork();
     if (child == -1) {
         // handle errors
-        // return -1 to be handled further
-        return -1;
+        // add string with error number
+        char* error = malloc(sizeof(char) * 40);
+        sprintf(error, "ErrorNumber: %d", errno);
+        ErrorPrint("Couldn't create child process!", error);
     } else if (child == 0) {
         // execute command in child process
         // open file for reading
@@ -264,8 +266,16 @@ int handleRedirectInput(char *input) {
         if (file == NULL) {
             // add string with error number
             char* error = malloc(sizeof(char) * 40);
-            sprintf(error, "ErrorNumber: %d", errno);
-            ErrorPrint("Couldn't open file for input. Check that it exists!", error);
+            if (errno == 2) {
+                sprintf(error, "ErrorNumber: %d", errno);
+                ErrorPrint("Couldn't open file for input. It doesn't exist!", error);
+            } else if (errno == 13) {
+                sprintf(error, "ErrorNumber: %d", errno);
+                ErrorPrint("Couldn't open file for input. Insufficient Permissions!", error);
+            } else {
+                sprintf(error, "ErrorNumber: %d", errno);
+                ErrorPrint("Couldn't open file for input", error);
+            }
             exit(0);
         }
         // redirect STDIN (position 0 in file descriptor table) to file [see manpage for dup2]
@@ -303,9 +313,8 @@ int handleRedirectOutput(char *input) {
 
         // add string with error number
         char* error = malloc(sizeof(char) * 40);
-        sprintf(error, "Command: [\"%s\"], ErrorNumber: %d", input, errno);
+        sprintf(error, "ErrorNumber: %d", errno);
         ErrorPrint("Couldn't create child process!", error);
-        exit(0);
     } else if (child == 0) {
         // execute command in child process
         // open file for writing (creates if it doesn't already exist)
@@ -313,8 +322,14 @@ int handleRedirectOutput(char *input) {
         if (file == NULL) {
             // add string with error number
             char* error = malloc(sizeof(char) * 40);
-            sprintf(error, "Command: [\"%s\"], ErrorNumber: %d", input, errno);
-            ErrorPrint("Couldn't open file for output!", error);
+            if (errno == 2) {
+                ErrorPrint("Couldn't open file for output. It doesn't exist!", "File doesn't exist");
+            } else if (errno == 13) {
+                ErrorPrint("Couldn't open file for output", "Insufficient Permissions");
+            } else {
+                sprintf(error, "ErrorNumber: %d", errno);
+                ErrorPrint("Couldn't open file for output!", error);
+            }
             exit(0);
         }
         // redirect STDOUT (position 2 in file descriptor table) to file [see man page for dup2]
@@ -377,8 +392,16 @@ int handleInput(char* input) {
                 if (cmdStatusCd == -1) {
                     // add string with error number (40 is arbitrary)
                     char* error = malloc(sizeof(char) * 40);
-                    sprintf(error, "Command: [\"%s\"], ErrorNumber: %d", input, errno);
-                    ErrorPrint("Error changing directory. Check that it exists...", error);
+                    if (errno == 2) {
+                        sprintf(error, "ErrorNumber: %d", errno);
+                        ErrorPrint("Couldn't change directory. Directory doesn't exist", error);
+                    } else if (errno == 13) {
+                        sprintf(error, "ErrorNumber: %d", errno);
+                        ErrorPrint("Couldn't change directory. Insufficient Permissions", error);
+                    } else {
+                        sprintf(error, "ErrorNumber: %d", errno);
+                        ErrorPrint("Couldn't change directory", error);
+                    }
                 }
                 break;
             // workable redirects
