@@ -2,24 +2,28 @@
 #define SHELLLIB_H
 
 // ENUMS and GLOBAL CONSTANTS
-enum status;
-
-// DEBUGGING TOOLS
-void DebugPrint(char* message, char* data);
-void ErrorPrint(char* message, char* data);
-
 extern int MAX_PATH;
 extern int DEBUG;
 extern char* GREEN;
 extern char* NORMAL;
 extern char* RED;
+enum status;
+
+// UTILITIES
+void trimLeading(char* input);
+void trimTrailing(char* input);
+void trimWhitespace(char* input);
+
+// DEBUGGING TOOLS
+void DebugPrint(char* message, char* data);
+void ErrorPrint(char* message, char* data);
+
 
 // GENERATORS
 char* makePrompt();
 
 // PARSERS
-enum status tokenize(char input[256]); // return could be status enum?
-//int tokenize(char input[256]); // could also return number of status enum
+enum status tokenize(char input[256]);
 
 // HANDLERS
 int handleNoRedirect(char* input);
