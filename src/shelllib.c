@@ -172,10 +172,6 @@ enum status tokenize(char input[256]) {
             redirectStatus = UnsupporedRedirect;
             redirectTokenCount++;
         }
-        else if (strcmp(token, ">>") == 0) {
-            redirectStatus = UnsupporedRedirect;
-            redirectTokenCount++;
-        }
         token = strtok(NULL, " ");
     }
     // if more than one redirect token was found, return error
@@ -355,6 +351,7 @@ int handleRedirectOutput(char *input) {
 
 }
 
+/* Handler: Handles user input itself or passes the input to the handler specific to that action */
 int handleInput(char* input) {
     /* Function takes an input and returns a 1 or 0.
     0 will cause the program to end. 1 will let it continue
