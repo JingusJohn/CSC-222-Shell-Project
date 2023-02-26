@@ -58,7 +58,7 @@ gcc -o techshell techshell.c shelllib.c
    3. Handle input absed on the status
       1. NoRedirect
          1. Make child process and check for errors
-         2. If no errors, execute using `system`.
+         2. If no errors, execute using `execvp`.
          3. Child process exits when execution completed.
          4. Parent process waits for child to conclude.
       2. RedirectInput

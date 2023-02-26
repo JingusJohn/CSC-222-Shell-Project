@@ -116,7 +116,7 @@ char* makePrompt() {
 
 // PARSERS
 /* Parser: Tokenizes input and decides whether or not user provided a redirect token */
-enum status tokenize(char input[256]) {
+enum status tokenize(char input[256], char* tokens[256], int *tokenCount) {
     // tokenize first substring until whitespace
     char *token = strtok(input, " ");
 
@@ -172,7 +172,18 @@ enum status tokenize(char input[256]) {
             redirectStatus = UnsupporedRedirect;
             redirectTokenCount++;
         }
+
+        if (redirectStatus == NoRedirect) {
+            if (DEBUG == 1) {
+                DebugPrint("added token:", token);
+            }
+            // add token to tokens array
+            tokens[*tokenCount] = token;
+            (*tokenCount)++;
+        }
+
         token = strtok(NULL, " ");
+
     }
     // if more than one redirect token was found, return error
     if (redirectTokenCount > 1) {
@@ -187,7 +198,7 @@ enum status tokenize(char input[256]) {
 
 // HANDLERS
 /* Handler: Handles the case where the user changes directory via cd */
-int handleChangeDirectory(char *input) {
+int handleChangeDirectory(char *input, char* tokens[256], int tokenCount) {
     // tokenize first substring until whitespace
     
     // split by space
@@ -203,7 +214,9 @@ int handleChangeDirectory(char *input) {
 }
 
 /* Handler: Handles the case where the user does not redirect any I/O */
-int handleNoRedirect(char *input) {
+int handleNoRedirect(char *input, char* tokens[256], int tokenCount) {
+    // trim whitespace from input
+    trimWhitespace(input);
     // fork child process
     pid_t child = fork();
     if (child == -1) {
@@ -215,8 +228,19 @@ int handleNoRedirect(char *input) {
         if (DEBUG == 1) {
             DebugPrint("child process: executing command", input);
         }
-        // execute command
-        system(input);
+        // get first token in left side
+        char *command = strtok(input, " ");
+        if (DEBUG == 1) {
+            DebugPrint("child process: command", command);
+        }
+        // execute command passing the executable name and the args (args technically also includes the executable name)
+        int error = execvp(command, tokens);
+
+        // handle errors
+        if (error != 0) {
+            // return -1 to be handled further
+            return -1;
+        }
 
         if (DEBUG == 1) {
             DebugPrint("child process:", "command executed");
@@ -236,12 +260,21 @@ int handleNoRedirect(char *input) {
 }
 
 /* Handler: Handles case where user redirects some file as input */
-int handleRedirectInput(char *input) {
+int handleRedirectInput(char *input, char* tokens[256], int tokenCount) {
+    // DEBUGGING
+    if (DEBUG == 1) {
+        printf("Number of tokens gotten: %d\n", tokenCount);
+        // print every token provided
+        for (int i = 0; i < tokenCount + 1; i++) {
+            DebugPrint("token here:", tokens[i]);
+        }
+    }
     // split string along the redirect character (gets left side first)
     char *leftSide = strtok(input, "<");
     // get the right side of the string
     char *rightSide = strtok(NULL, "<");
-    // trim whitespace from left and right of the right side of the command
+    // trim whitespace from both sides
+    trimWhitespace(leftSide);
     trimWhitespace(rightSide);
 
     int signalStatus = 0;
@@ -277,7 +310,21 @@ int handleRedirectInput(char *input) {
         // redirect STDIN (position 0 in file descriptor table) to file [see manpage for dup2]
         dup2(fileno(file), 0);
         // execute command
-        system(leftSide);
+        // get first token in left side
+        char *command = strtok(leftSide, " ");
+        trimWhitespace(command);
+        if (DEBUG == 1) {
+            DebugPrint("child process: command", command);
+        }
+        // execute command passing the executable name and the args (args technically also includes the executable name)
+        int error = execvp(command, tokens);
+        // check for errors and handle them
+        if (error != 0) {
+            // add string with error number
+            char* error = malloc(sizeof(char) * 40);
+            sprintf(error, "ErrorNumber: %d", errno);
+            ErrorPrint("Couldn't execute command!", error);
+        }
         // close file
         fclose(file);
         // exit child process
@@ -294,7 +341,7 @@ int handleRedirectInput(char *input) {
 }
 
 /* Handler: Handles case where user redirects the output of the command to some file */
-int handleRedirectOutput(char *input) {
+int handleRedirectOutput(char *input, char* tokens[256], int tokenCount) {
     // split string along the redirect character (gets left side first)
     char *leftSide = strtok(input, ">");
     // get the right side of the string
@@ -330,8 +377,15 @@ int handleRedirectOutput(char *input) {
         }
         // redirect STDOUT (position 2 in file descriptor table) to file [see man page for dup2]
         dup2(fileno(file), 1);
-        // execute command
-        system(leftSide);
+        // get first token in left side
+        char *command = strtok(leftSide, " ");
+        trimWhitespace(command);
+        if (DEBUG == 1) {
+            DebugPrint("child process: command", command);
+        }
+        // execute command passing the executable name and the args (args technically also includes the executable name)
+        int error = execvp(command, tokens);
+        
         // close file
         fclose(file);
         // exit child process
@@ -372,8 +426,20 @@ int handleInput(char* input) {
         char inputCopy[256];
         strcpy(inputCopy, input);
 
+        // Make array for holding individual tokens
+        char* rawTokens[256];
+        // Make variable to hold number of tokens
+        int tokenCount = 0;
+
         // tokenize the input
-        enum status redirectStatus = tokenize(inputCopy);
+        enum status redirectStatus = tokenize(inputCopy, rawTokens, &tokenCount);
+
+        // make dynamic string array then add each token to it
+        char** tokens = malloc(sizeof(char*) * tokenCount);
+        for (int i = 0; i < tokenCount; i++) {
+            tokens[i] = malloc(sizeof(char) * strlen(rawTokens[i]));
+            strcpy(tokens[i], rawTokens[i]);
+        }
 
         // TODO: handle redirects based on status
         // need to verify that the there are arguments before and after the redirect token
@@ -385,7 +451,7 @@ int handleInput(char* input) {
                     DebugPrint("redirectStatus:", "ChangeDirectory");
                 }
                 // handle cd command
-                int cmdStatusCd = handleChangeDirectory(input);
+                int cmdStatusCd = handleChangeDirectory(input, tokens, tokenCount);
                 if (cmdStatusCd == -1) {
                     // add string with error number (40 is arbitrary)
                     char* error = malloc(sizeof(char) * 40);
@@ -407,11 +473,12 @@ int handleInput(char* input) {
                 if (DEBUG == 1) {
                     DebugPrint("redirectStatus:", "NoRedirect");
                 }
-                int cmdStatusNoRe = handleNoRedirect(input);
+                int cmdStatusNoRe = handleNoRedirect(input, tokens, tokenCount);
                 if (cmdStatusNoRe == -1) {
                     char* error = malloc(sizeof(char) * 40);
                     sprintf(error, "Command: [\"%s\"], ErrorNumber: %d", input, errno);
                     ErrorPrint("Error executing command:", error);
+                    exit(0);
                 }
                 break;
             case RedirectInput:
@@ -419,11 +486,12 @@ int handleInput(char* input) {
                 if (DEBUG == 1) {
                     DebugPrint("redirectStatus:", "RedirectInput");
                 }
-                int cmdStatusReIn = handleRedirectInput(input);
+                int cmdStatusReIn = handleRedirectInput(input, tokens, tokenCount);
                 if (cmdStatusReIn == -1) {
                     char* error = malloc(sizeof(char) * 40);
                     sprintf(error, "[\"%s\"] ErrorNumber: %d", input, errno);
                     ErrorPrint("Error executing command:", error);
+                    exit(0);
                 }
                 break;
             case RedirectOutput:
@@ -431,11 +499,12 @@ int handleInput(char* input) {
                 if (DEBUG == 1) {
                     DebugPrint("redirectStatus:", "RedirectOutput");
                 }
-                int cmdStatusReOut = handleRedirectOutput(input);
+                int cmdStatusReOut = handleRedirectOutput(input, tokens, tokenCount);
                 if (cmdStatusReOut == -1) {
                     char* error = malloc(sizeof(char) * 40);
                     sprintf(error, "[\"%s\"] ErrorNumber: %d", input, errno);
                     ErrorPrint("Error executing command:", error);
+                    exit(0);
                 } 
                 break;
             // unsupported redirects and errors
@@ -455,6 +524,8 @@ int handleInput(char* input) {
                 printf("Error: Unknown error.");
                 break;
         }
+
+        free(tokens);
         return 1;
     }
 }

@@ -23,12 +23,13 @@ void ErrorPrint(char* message, char* data);
 char* makePrompt();
 
 // PARSERS
-enum status tokenize(char input[256]);
+enum status tokenize(char input[256], char* tokens[256], int tokenCount);
 
 // HANDLERS
-int handleNoRedirect(char* input);
-int handleRedirectInput(char* input);
-int handleRedirectOutput(char* input);
+int handleChangeDirectory(char* input, char* tokens[256], int tokenCount);
+int handleNoRedirect(char* input, char* tokens[256], int tokenCount);
+int handleRedirectInput(char* input, char* tokens[256], int tokenCount);
+int handleRedirectOutput(char* input, char* tokens[256], int tokenCount);
 int handleInput(char* input);
 
 #endif
